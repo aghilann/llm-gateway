@@ -17,14 +17,15 @@
 
 import datetime
 import json
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Tuple, Union
 
 import cohere
 from cohere.responses.generation import StreamingText
 
 from llm_gateway.constants import get_settings
-from llm_gateway.db.models import CohereRequests
+from llm_gateway.db.models import CohereRequests, Provider, ProviderRequest
 from llm_gateway.db.utils import write_record_to_db
+from llm_gateway.models import DBRecord
 from llm_gateway.pii_scrubber import scrub_all
 from llm_gateway.utils import StreamProcessor
 
@@ -140,7 +141,7 @@ class CohereWrapper:
         stream: bool = False,
         additional_command: Optional[str] = "",
         **kwargs,
-    ):
+    ) -> Tuple[Union[dict, Iterator[str]], DBRecord]:
         """
         Send a request to the Cohere API and log interaction to the DB
 
@@ -184,23 +185,24 @@ class CohereWrapper:
         # The cached streaming response is an empty list at this point.
         # Once the stream is returned to the user it will be populated
         # Since the DB write happens after the stream, this will always be populated
-        db_record = {
-            "user_input": prompt,
-            "user_email": None,
-            "cohere_response": cached_response,
-            "cohere_model": model,
-            "temperature": temperature,
-            "extras": json.dumps(kwargs),
-            "created_at": datetime.datetime.now(),
-            "cohere_endpoint": endpoint,
-        }
+
+        db_record = DBRecord(
+            user_input=prompt,
+            user_email=None,
+            response=cached_response,
+            model=model,
+            temperature=temperature,
+            extras=json.dumps(kwargs),
+            endpoint=endpoint,
+        )
 
         return cohere_response, db_record
 
-    def write_logs_to_db(self, db_logs: dict):
+    def write_logs_to_db(self, db_logs: DBRecord) -> None:
         if isinstance(db_logs["cohere_response"], list):
             db_logs["cohere_response"] = "".join(db_logs["cohere_response"])
-        write_record_to_db(CohereRequests(**db_logs))
+        db_logs["provider"] = Provider.COHRE
+        write_record_to_db(ProviderRequest(**DBRecord))
 
 
 def stream_generator_cohere(generator: Iterator) -> Iterator[dict]:

@@ -23,9 +23,10 @@ import boto3
 from fastapi.responses import JSONResponse
 
 from llm_gateway.constants import get_settings
-from llm_gateway.db.models import AWSBedrockRequests
+from llm_gateway.db.models import AWSBedrockRequests, Provider, ProviderRequest
 from llm_gateway.db.utils import write_record_to_db
 from llm_gateway.exceptions import AWSBEDROCK_EXCEPTIONS
+from llm_gateway.models import DBRecord
 from llm_gateway.pii_scrubber import scrub_all
 from llm_gateway.utils import max_retries
 
@@ -251,7 +252,7 @@ class AWSBedrockWrapper:
         instruction: Optional[str] = None,
         embedding_texts: Optional[str] = None,
         **kwargs,
-    ) -> Tuple[Union[dict, Iterator[str]], dict]:
+    ) -> Tuple[Union[dict, Iterator[str]], DBRecord]:
         """
         Send a request to the AWS Bedrock API and return response and logs for db write
 
@@ -296,20 +297,20 @@ class AWSBedrockWrapper:
 
         awsbedrock_response = self._invoke_awsbedrock_model(model, body)
 
-        db_record = {
-            "user_input": user_input,
-            "user_email": None,
-            "awsbedrock_response": awsbedrock_response,
-            "awsbedrock_model": model,
-            "temperature": temperature,
-            "extras": json.dumps(kwargs),
-            "awsbedrock_endpoint": awsbedrock_module,
-            "created_at": datetime.datetime.now(),
-        }
+        db_record = DBRecord(
+            user_input=user_input,
+            response=None,
+            model=awsbedrock_response,
+            temperature=temperature,
+            extras=json.dumps(kwargs),
+            endpoint=awsbedrock_module,
+            user_email=None,
+        )
 
         return awsbedrock_response, db_record
 
-    def write_logs_to_db(self, db_logs: dict):
+    def write_logs_to_db(self, db_logs: DBRecord) -> None:
         if isinstance(db_logs["awsbedrock_response"], list):
             db_logs["awsbedrock_response"] = "".join(db_logs["awsbedrock_response"])
-        write_record_to_db(AWSBedrockRequests(**db_logs))
+        db_logs["provider"] = Provider.AWSBEDROCK
+        write_record_to_db(ProviderRequest(**DBRecord))

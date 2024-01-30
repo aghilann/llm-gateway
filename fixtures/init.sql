@@ -1,35 +1,16 @@
 -- SQL to initialize local db
 
-CREATE TABLE openai_requests(
-    id serial primary key,
-    user_input VARCHAR,
-    user_email VARCHAR,
-    openai_response JSON,
-    openai_model VARCHAR,
-    temperature FLOAT,
-    created_at TIMESTAMP WITHOUT TIME ZONE,
-    openai_endpoint VARCHAR
-);
+CREATE TYPE provider_type AS ENUM ('openai_requests', 'awsbedrock_requests', 'cohere_requests');
 
-CREATE TABLE cohere_requests(
+CREATE TABLE requests (
     id serial primary key,
     user_input VARCHAR,
     user_email VARCHAR,
-    cohere_response JSON,
-    cohere_model VARCHAR,
+    response JSON,
+    model VARCHAR,
     temperature FLOAT,
     created_at TIMESTAMP WITHOUT TIME ZONE,
-    cohere_endpoint VARCHAR
-);
-
-CREATE TABLE awsbedrock_requests(
-    id serial primary key,
-    user_input VARCHAR,
-    user_email VARCHAR,
-    awsbedrock_response JSON,
-    awsbedrock_model VARCHAR,
-    temperature FLOAT,
-    created_at TIMESTAMP WITHOUT TIME ZONE,
-    awsbedrock_endpoint VARCHAR
-    extras JSON
+    endpoint VARCHAR,
+    extras JSON,
+    provider provider_type
 );

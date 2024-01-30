@@ -15,6 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
+import json
+from dataclasses import dataclass, field
 from typing import List
 
 from pydantic import BaseModel
@@ -77,3 +80,19 @@ class AWSBedrockEmbedInput(BaseModel):
     model: str
     max_tokens: int
     embedding_texts: List[str] = []
+
+
+@dataclass
+class DBRecord:
+    user_input: str
+    response: str
+    model: str
+    temperature: float
+    extras: str = field(default_factory=lambda: json.dumps({}))
+    endpoint: str
+    user_email: str = None
+    created_at: datetime.datetime = field(default_factory=datetime.datetime.now)
+
+    def __post_init__(self):
+        if isinstance(self.extras, dict):
+            self.extras = json.dumps(self.extras)

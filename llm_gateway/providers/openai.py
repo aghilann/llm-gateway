@@ -22,9 +22,10 @@ from typing import Iterator, List, Optional, Tuple, Union
 import openai
 
 from llm_gateway.constants import get_settings
-from llm_gateway.db.models import OpenAIRequests
+from llm_gateway.db.models import OpenAIRequests, Provider, ProviderRequest
 from llm_gateway.db.utils import write_record_to_db
 from llm_gateway.exceptions import OPENAI_EXCEPTIONS
+from llm_gateway.models import DBRecord
 from llm_gateway.pii_scrubber import scrub_all
 from llm_gateway.utils import StreamProcessor, max_retries
 
@@ -203,7 +204,7 @@ class OpenAIWrapper:
         instruction: Optional[str] = None,
         embedding_texts: Optional[list] = None,
         **kwargs,
-    ) -> Tuple[Union[dict, Iterator[str]], dict]:
+    ) -> Tuple[Union[dict, Iterator[str]], DBRecord]:
         """
         Send a request to the OpenAI API and return response and logs for db write
 
@@ -279,23 +280,25 @@ class OpenAIWrapper:
         # The cached streaming response is an empty list at this point.
         # Once the stream is returned to the user it will be populated
         # Since the DB write happens after the stream, this will always be populated
-        db_record = {
-            "user_input": user_input,
-            "user_email": None,
-            "openai_response": cached_response,
-            "openai_model": model,
-            "temperature": temperature,
-            "extras": json.dumps(kwargs),
-            "openai_endpoint": openai_module,
-            "created_at": datetime.datetime.now(),
-        }
+
+        db_record = DBRecord(
+            user_input=user_input,
+            response=cached_response,
+            model=model,
+            temperature=temperature,
+            extras=json.dumps(kwargs),
+            endpoint=openai_module,
+            user_email=None,
+        )
 
         return openai_response, db_record
 
     def write_logs_to_db(self, db_logs: dict):
         if isinstance(db_logs["openai_response"], list):
             db_logs["openai_response"] = "".join(db_logs["openai_response"])
-        write_record_to_db(OpenAIRequests(**db_logs))
+
+        db_logs["provider"] = Provider.OPENAI
+        write_record_to_db(ProviderRequest(**DBRecord))
 
 
 def stream_generator_openai_chat(generator: Iterator) -> Iterator[str]:

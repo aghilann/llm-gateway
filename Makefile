@@ -15,7 +15,7 @@ browse:
 	open http://localhost:3000
 
 browse-api:
-	open http://localhost:5000/api/docs
+	open http://localhost:5001/api/docs
 
 up: docker-build
 	docker-compose -p llm-gateway -f docker-compose.yml up --detach
